@@ -1,0 +1,62 @@
+#!/bin/sh
+
+# Global vars
+boot2docker_path="/target/.boot2docker"
+tool_path="$boot2docker_path/tools"
+tool_header='# Boot2Docker Tool'
+
+InstallToolBootstrap(){
+    shell_profile="target/.profile"
+
+    echo "Installing bootstrap tools"
+    mkdir -p $tool_path
+    cp -Rf /setup-host "$tool_path/"
+    cp -Rf /docker-enter "$tool_path/"
+
+    if [ -f "/target/.zshrc" ]; then
+        shell_profile="/target/.zshrc"
+    fi
+
+    if grep "$tool_header" $shell_profile; then
+        echo "Tool bootstrap already configured! skipping.."
+
+    else
+        echo "Append tool bootstrap command line to $shell_profile"
+
+        {
+        echo "$tool_header";
+        echo '$(boot2docker shellinit)';
+        echo "export PATH=$PATH:~/.boot2docker/tools";
+        echo 'alias dlc="docker ps -l -q"';
+        echo "alias drm=\"docker ps -a | grep Exited | cut -d ' ' -f 1 | xargs docker rm\"";
+        echo 'alias drmi="docker rmi $(docker images -q -f 'dangling=true')"';
+        echo 'alias dps="docker ps"';
+        echo 'alias dpsa="docker ps -a"'
+        } >> $shell_profile
+    fi
+}
+
+InstallNSenter(){
+    echo "Installing nsenter tool"
+    docker run --rm -v /var/lib/boot2docker:/target jpetazzo/nsenter
+}
+
+if mountpoint -q /target; then
+    # Check for boot2docker installation
+    if [ -d "$boot2docker_path" ]; then
+        # Check for nsenter
+        command -v nsenter && echo "nsenter founded! skipping installation." || InstallNSenter
+
+        # Check for bootstrap tool
+        [ -f "$tool_path/docker-enter" ] && echo "Tool bootstrap found! skipping installation" || InstallToolBootstrap
+
+    else
+        echo "Boot2Docker not found or not install, please verified the installation before proceeeding."
+    fi
+
+else
+    printf "Target is not mount point, please provide a user home path, using below command instead :-\n"
+    printf "> docker run --rm -v ~/:/target nematix/boot2docker-tool\n"
+    printf "or\n"
+    printf "> docker run --rm -v /Users/azri:/target nematix/boot2docker-tool\n"
+fi

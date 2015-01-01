@@ -1,0 +1,13 @@
+#!/bin/sh
+
+if command -v boot2docker; then
+    # Boot2Docker host
+    boot2docker_ip=$(boot2docker ip)
+    if ! grep "$boot2docker_ip" /private/etc/hosts; then
+        read -p "Do you want to setup boot2docker hostname? Enter hostname (example; dockers) to proceed, empty to cancel :" boot2docker_hostname
+
+        if [ -n "$boot2docker_hostname" ] ; then
+            echo "$boot2docker_ip $boot2docker_hostname" | sudo tee --append /private/etc/hosts
+        fi
+    fi
+fi
